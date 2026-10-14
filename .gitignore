@@ -1,0 +1,28 @@
+﻿# Python virtual environments
+.venv/
+.venv311/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Local datasets
+dataset/
+
+# Large dataset archives
+character_yolo_dataset.zip
+localization_yolo_dataset.zip
+localization_yolo_improved.zip
+
+# Jupyter temporary files
+.ipynb_checkpoints/
+
+# IDE / OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log

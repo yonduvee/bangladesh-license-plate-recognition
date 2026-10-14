@@ -1,0 +1,61 @@
+Bangladesh License Plate Recognition
+Localization Model Comparison
+========================================
+
+BASELINE HELD-OUT TEST
+Images: 641
+Instances: 485
+Backgrounds: 172
+
+Precision: 0.983
+Recall: 0.971
+mAP50: 0.991
+mAP50-95: 0.788
+
+IMPROVED HELD-OUT TEST
+Images: 641
+Instances: 485
+Backgrounds: 172
+
+Precision: 0.9814
+Recall: 0.9794
+mAP50: 0.9926
+mAP50-95: 0.7920
+
+DIFFICULT UNSEEN TESTS
+Test 03:
+Baseline: no detection
+Improved: no detection
+Result: unresolved
+
+Test 04:
+Baseline: no detection
+Improved: no detection
+Result: unresolved
+
+Test 05:
+Baseline confidence: 0.0802
+Improved confidence: 0.6808
+Result: major improvement
+
+Test 06:
+Baseline confidence: 0.0822
+Improved best confidence: 0.0955
+Result: localization remains weak
+
+FINAL DECISION
+The improved YOLO11n localization model is selected as the final
+localization model.
+
+Reasons:
+1. Higher held-out test recall.
+2. Higher held-out mAP50.
+3. Higher held-out mAP50-95.
+4. Major generalization improvement on difficult unseen Test 05.
+5. Precision reduction is very small.
+
+LIMITATION
+The improved model does not fully solve difficult localization.
+Tests 03 and 04 remain undetected, while Test 06 remains weak.
+Additional diverse real-world training data would likely be required
+to improve these domain-shifted cases further.

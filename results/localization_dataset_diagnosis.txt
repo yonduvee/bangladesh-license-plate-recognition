@@ -1,0 +1,65 @@
+LOCALIZATION DATASET DIAGNOSIS
+
+Dataset:
+Train images: 5124
+Positive images: 3745
+Negative images: 1379
+Annotated boxes: 3798
+
+Brightness:
+Dark: 568 (14.96%)
+Medium: 2970 (78.20%)
+Bright: 260 (6.85%)
+
+Bounding boxes:
+Median normalized width: 0.1678
+Median normalized height: 0.1094
+Median area: 1.80%
+Median aspect ratio: 1.517
+
+Aspect ratio:
+Very narrow (<0.75): 157
+Typical (1.0-2.5): 2931
+Very wide (>3.5): 27
+Visual inspection showed a mixture of genuine unusual plates
+and some questionable/tight annotations.
+
+Image resolution:
+Median width: 960 px
+Median height: 799 px
+Only 152 images have longest side <=500 px.
+Only 603 images have longest side <=640 px.
+
+Actual plate size:
+Median plate width: 148 px
+Median plate height: 88.5 px
+619 plates are below 100 px wide.
+186 plates are below 100 px wide and 50 px high.
+
+Visual diversity:
+Moderate diversity was observed.
+Many images use similar front/rear viewpoints, daylight conditions,
+centered plate positions, and similar vehicle-to-camera distances.
+
+Unseen-test evidence:
+Test 01: success
+Test 02: success after merging overlapping detections
+Test 03: localization failure
+Test 04: localization failure
+Test 05: weak localization / partial recognition
+Test 06: localization box substantially shifted
+
+Conclusion:
+The primary bottleneck is localization generalization.
+Low resolution contributes to some failures, especially Test 03.
+Brightness alone does not explain the failures.
+Plate size alone does not explain the failures.
+Some annotation inconsistencies exist but are not sufficient by
+themselves to explain the unseen-test behavior.
+The training dataset has moderate domain diversity and appears
+underrepresented in difficult viewpoints, lighting, distances,
+low-resolution conditions, and other unseen-domain situations.
+
+Recommended next phase:
+Improve localization training data and augmentation before retraining.
+Do not simply retrain the existing YOLO11n configuration unchanged.

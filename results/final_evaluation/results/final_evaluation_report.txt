@@ -1,0 +1,31 @@
+BANGLADESH LICENSE PLATE RECOGNITION
+FINAL END-TO-END PIPELINE EVALUATION
+==================================================
+
+Image: 3.jfif
+Status: success
+Recognized Plate:
+dhaka metro ga
+147143
+Localization Detections: 1
+Character Detections After Filtering: 9
+--------------------------------------------------
+
+Image: 2.jfif
+Status: success
+Recognized Plate:
+dhaka metro ga
+192313
+Localization Detections: 1
+Character Detections After Filtering: 9
+--------------------------------------------------
+
+Image: 1.jfif
+Status: success
+Recognized Plate:
+dhaka metro gha
+218456
+Localization Detections: 1
+Character Detections After Filtering: 9
+--------------------------------------------------
+

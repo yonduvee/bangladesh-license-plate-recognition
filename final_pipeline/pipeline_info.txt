@@ -1,0 +1,45 @@
+﻿BANGLADESH LICENSE PLATE RECOGNITION
+FINAL PIPELINE INFORMATION
+====================================
+
+Localization Model:
+models/localization/localization_best.pt
+
+Character Recognition Model:
+models/character/character_best.pt
+
+Localization Confidence:
+0.05
+
+Character Confidence:
+0.10
+
+Localization Image Size:
+640
+
+Character Image Size:
+640
+
+Plate Crop Horizontal Padding:
+12%
+
+Post-processing:
+- Overlapping localization box merging
+- Character duplicate/conflict filtering
+- Two-row character reconstruction
+- Left-to-right character ordering
+
+Pipeline:
+Vehicle Image
+-> License Plate Localization
+-> Plate Crop
+-> Character Detection
+-> Duplicate Filtering
+-> Row Reconstruction
+-> Final Plate Text
+
+Current Status:
+Baseline pipeline verified locally.
+
+Note:
+Improved localization model retraining is pending GPU availability.
