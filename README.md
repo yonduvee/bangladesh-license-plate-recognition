@@ -1,1420 +1,462 @@
-**\# Bangladesh License Plate Recognition**
+::: {align="center"}
+# BD PlateVision
+
+### A YOLO11-Based Framework for Bangladeshi License Plate Localization and Character Recognition
+
+**Detect the plate. Recognize Bengali characters. Reconstruct the
+registration text.**
+
+```{=html}
+<p>
+```
+`<img src="https://img.shields.io/badge/Computer%20Vision-YOLO11-2563eb?style=for-the-badge" alt="Computer Vision: YOLO11">`{=html}
+`<img src="https://img.shields.io/badge/API-FastAPI-009688?style=for-the-badge" alt="FastAPI">`{=html}
+`<img src="https://img.shields.io/badge/Frontend-Next.js%20%7C%20TypeScript-111827?style=for-the-badge" alt="Next.js and TypeScript">`{=html}
+`<img src="https://img.shields.io/badge/Status-Research%20Project-64748b?style=for-the-badge" alt="Research project">`{=html}
+```{=html}
+</p>
+```
+**Developed by Abidul Hoque Alvee**\
+Independent Computer Vision Project · 2026
+:::
+
+------------------------------------------------------------------------
+
+## Overview
+
+**BD PlateVision** is an end-to-end computer vision project for
+detecting Bangladeshi vehicle license plates and recognizing the Bengali
+text and numerals printed on them.
+
+The machine-learning pipeline uses two YOLO11n models:
+
+-   **License plate localization** finds the plate region in a vehicle
+    image.
+-   **Character recognition** detects and classifies the plate's region
+    name, category letter, and digits.
+
+A FastAPI backend exposes the recognition pipeline to a web interface
+built with Next.js and TypeScript.
+
+> **Important:** This is a research and demonstration project.
+> Recognition results should be checked against the original image,
+> particularly when the plate is blurred, distant, tilted, poorly
+> illuminated, or when any confidence score is low.
+
+## Table of Contents
+
+-   [Highlights](#highlights)
+-   [How It Works](#how-it-works)
+-   [Technology Stack](#technology-stack)
+-   [Dataset](#dataset)
+-   [Models and Evaluation](#models-and-evaluation)
+-   [Recent Recognition Improvements](#recent-recognition-improvements)
+-   [Project Structure](#project-structure)
+-   [Local Setup](#local-setup)
+-   [Run the Recognition Pipeline](#run-the-recognition-pipeline)
+-   [FastAPI Endpoints](#fastapi-endpoints)
+-   [Google Colab Experiments](#google-colab-experiments)
+-   [Limitations and Future Work](#limitations-and-future-work)
+-   [Author](#author)
+
+## Highlights
+
+-   YOLO11-based plate localization and character-level detection.
+-   Bengali region names, category letters, and digits mapped to
+    readable text.
+-   Two-line plate reconstruction with left-to-right character ordering.
+-   Character-level confidence values and plate bounding-box
+    coordinates.
+-   Dataset auditing, annotation checks, and train/validation/test
+    evaluation.
+-   Baseline-versus-improved localization experiments.
+-   FastAPI endpoint for connecting the ML pipeline to a web
+    application.
+-   Targeted regression tests for difficult plate examples.
+
+## How It Works
+
+``` text
+Vehicle Image
+     |
+     v
+YOLO11n Plate Localization
+     |
+     v
+Plate Bounding Box
+     |
+     v
+Padded Plate Crop
+     |
+     v
+YOLO11n Character Detection
+     |
+     v
+Duplicate / Overlap Filtering
+     |
+     v
+Top and Bottom Row Reconstruction
+     |
+     v
+Recognized Bengali Plate Text
+```
 
-An end-to-end computer vision system for detecting and recognizing
+The backend returns the recognized plate string, upper and lower lines,
+localization confidence, plate coordinates, and individual character
+detections.
 
-Bangladeshi vehicle license plates from vehicle images.
+## Technology Stack
 
-The system uses two YOLO11n models:
+  -----------------------------------------------------------------------
+  Area                                Technologies
+  ----------------------------------- -----------------------------------
+  Detection models                    Ultralytics YOLO11n
 
-1\.  **\*\*License Plate Localization\*\*** - detects the license plate
-region
+  Deep learning                       PyTorch
 
-    from a vehicle image.
+  Image processing                    OpenCV, NumPy
 
-2\.  **\*\*Character Recognition\*\*** - detects and classifies Bangla
-plate
+  Backend API                         FastAPI
 
-    components and digits from the localized plate.
+  Web interface                       Next.js, React, TypeScript
 
-The final pipeline performs:
+  Training and evaluation             Python, Google Colab, Tesla T4 GPU
+                                      when available
+  -----------------------------------------------------------------------
 
-\*\*Vehicle Image -\\\> Plate Localization -\\\> Plate Crop -\\\>
-Character
+## Dataset
 
-Detection -\\\> Duplicate Filtering -\\\> Row Reconstruction -\\\>
-Recognized
+The project maintains separate YOLO-format datasets for plate
+localization and character recognition. The original datasets were
+preserved separately from cleaned or experimental copies.
 
-Plate Text\*\*
+### Localization dataset
 
----
+The final leakage-safe localization split contains **6,405 images**.
 
-**\## 1. Project Status**
+  Split             Images   Positive images   Negative images   Plate objects
+  ------------ ----------- ----------------- ----------------- ---------------
+  Train              5,124             3,745             1,379           3,798
+  Validation           640               446               194             450
+  Test                 641               469               172             485
+  **Total**      **6,405**         **4,660**         **1,745**       **4,733**
 
-The complete machine-learning pipeline has been trained, evaluated,
+The initial audit found invalid boxes, image/XML dimension mismatches,
+exact duplicates, and visually related samples across splits. These
+issues were investigated and handled in separate cleaned datasets. The
+final leakage-safe split had no detected cross-split MD5 duplicates,
+exact perceptual-hash duplicates, or near perceptual-hash matches at the
+configured threshold.
 
-improved, selected, and verified in both Google Colab and a local
+### Character-recognition dataset
 
-Windows/VS Code environment.
+  Split             Images   Character objects
+  ------------ ----------- -------------------
+  Train              3,480              30,604
+  Validation           363               3,180
+  Test                 218               1,921
+  **Total**      **4,061**          **35,705**
 
-Current status:
+The character detector has **27 classes**:
 
-\- Dataset audit and cleaning: **\*\*Completed\*\***
+``` text
+Digits: 0 1 2 3 4 5 6 7 8 9
 
-\- Data leakage analysis: **\*\*Completed\*\***
+Labels: ba, ca, chattogram, da, dhaka, ga, gha, ha, ja,
+        jashore, ka, kha, khulna, metro, na, ta, va
+```
 
-\- Leakage-safe localization dataset: **\*\*Completed\*\***
+The `data.yaml` file defines the class IDs and split paths. Keep train,
+validation, and test data separated when preparing new experiments.
 
-\- YOLO dataset conversion: **\*\*Completed\*\***
+## Models and Evaluation
 
-\- Baseline localization training: **\*\*Completed\*\***
+Both localization and character recognition use YOLO11n.
 
-\- Character recognition training: **\*\*Completed\*\***
+### Model files
 
-\- Held-out model evaluation: **\*\*Completed\*\***
-
-\- End-to-end recognition pipeline: **\*\*Completed\*\***
-
-\- Unseen-image testing: **\*\*Completed\*\***
-
-\- Localization dataset diagnosis: **\*\*Completed\*\***
-
-\- Targeted localization dataset improvement: **\*\*Completed\*\***
-
-\- Improved localization retraining: **\*\*Completed\*\***
-
-\- Baseline vs improved comparison: **\*\*Completed\*\***
-
-\- Difficult unseen-image re-testing: **\*\*Completed\*\***
-
-\- Final localization model selection: **\*\*Completed\*\***
-
-\- Final end-to-end verification: **\*\*Completed\*\***
-
-\- Local VS Code verification with final models: **\*\*Completed\*\***
-
-The improved YOLO11n localization model is the selected final
-
-localization model. The original baseline localization model is retained
-
-separately for comparison and reproducibility.
-
----
-
-**\## 2. Dataset Preparation**
-
-Two main datasets were used:
-
-\- License Plate Localization
-
-\- Character Recognition
-
-The original datasets were preserved without modification.
-
-**\### Localization Dataset Audit**
-
-Original localization dataset:
-
-Split Images
-
----
-
-Train 5,687
-
-Validation 277
-
-Test 553
-
-**\*\*Total\*\*** **\*\*6,517\*\***
-
-The audit identified:
-
-\- 1,795 empty annotations
-
-\- 6 invalid bounding boxes
-
-\- 218 image/XML dimension mismatches
-
-\- Cross-split duplicate and visual-overlap issues
-
-Empty annotations were retained because they provide useful
-
-negative/background examples.
-
-Annotation dimension mismatches and invalid bounding boxes were
-
-corrected in a separate cleaned dataset while preserving the original
-
-data.
-
----
-
-**\## 3. Data Leakage Prevention**
-
-A detailed leakage audit was performed before final training.
-
-The localization dataset initially contained:
-
-\- 33 exact MD5 cross-split duplicate groups
-
-\- 68 files involved in exact duplication
-
-After exact duplicate removal:
-
-\- 6,405 unique images remained
-
-\- 4,660 positive images
-
-\- 1,745 negative images
-
-\- 4,733 plate objects
-
-Perceptual hashing and source-aware grouping were then used to prevent
-
-visually related samples from appearing across different splits.
-
-**\### Final Leakage-Safe Localization Split**
-
-Split Images Positive Negative Objects
-
----
-
-Train 5,124 3,745 1,379 3,798
-
-Validation 640 446 194 450
-
-Test 641 469 172 485
-
-Final verification found:
-
-\- MD5 cross-split duplicates: **\*\*0\*\***
-
-\- Exact perceptual-hash cross-split duplicates: **\*\*0\*\***
-
-\- Near perceptual-hash cross-split matches at threshold \\\<=4:
-**\*\*0\*\***
-
-This leakage-safe split was used for the baseline localization
-
-experiment. The improved experiment preserved the same validation and
-
-test sets and modified only the training split through targeted
-
-augmentation.
-
----
-
-**\## 4. Character Recognition Dataset**
-
-Character recognition dataset:
-
-Split Images
-
----
-
-Train 3,480
-
-Validation 363
-
-Test 218
-
-**\*\*Total\*\*** **\*\*4,061\*\***
-
-Total annotated character objects:
-
-**\*\*35,705\*\***
-
-The character dataset contains **\*\*27 classes\*\***:
-
-\`\`\`text
-
-0 1 2 3 4 5 6 7 8 9
-
-ba ca chattogram da dhaka ga gha ha ja jashore
-
-ka kha khulna metro na ta va
-
-\`\`\`
-
-No cross-split MD5 or source-name leakage was detected.
-
----
-
-**\## 5. YOLO Training Datasets**
-
-**\### Baseline Localization Dataset**
-
-Split Images Objects Empty Labels
-
----
-
-Train 5,124 3,798 1,379
-
-Validation 640 450 194
-
-Test 641 485 172
-
-**\### Improved Localization Dataset**
-
-The improved experiment added 536 targeted training images while leaving
-
-validation and test unchanged.
-
-Split Images
-
----
-
-Train 5,660
-
-Validation 640
-
-Test 641
-
-**\### Character Recognition Dataset**
-
-Split Images Objects
-
----
-
-Train 3,480 30,604
-
-Validation 363 3,180
-
-Test 218 1,921
-
-No missing or invalid YOLO labels were detected in the final converted
-
-datasets.
-
----
-
-**\## 6. Models**
-
-Both tasks use **\*\*YOLO11n\*\***.
-
-Final model files:
-
-\`\`\`text
-
+``` text
 models/
-
 ├── localization/
-
-│   ├── localization_best.pt
-
-│   └── localization_baseline_best.pt
-
+│   ├── localization_best.pt
+│   └── localization_baseline_best.pt
 └── character/
+    └── character_best.pt
+```
 
-    └── character_best.pt
+-   `localization_best.pt` --- selected improved localization model.
+-   `localization_baseline_best.pt` --- retained baseline for
+    comparison.
+-   `character_best.pt` --- current production character-recognition
+    model.
 
-\`\`\`
+### Localization results
 
-\- \`localization_best.pt\` - selected improved localization model.
+The improved localization model was selected after comparing held-out
+test metrics and difficult unseen-image behavior. Validation metrics
+alone did not clearly favor the improved model.
 
-\- \`localization_baseline_best.pt\` - preserved baseline localization
+  Held-out test metric     Baseline   Improved
+  ---------------------- ---------- ----------
+  Precision                  0.9830     0.9814
+  Recall                     0.9710     0.9794
+  mAP@0.50                   0.9910     0.9926
+  mAP@0.50:0.95              0.7880     0.7920
 
-  model.
+The improved model had slightly lower precision but higher recall and
+mAP on the held-out test set. It also improved localization confidence
+on one difficult unseen example. Some difficult examples remained
+unresolved.
 
-\- \`character_best.pt\` - final character recognition model.
+### Character-recognition results
 
----
+Original character model on the held-out test set:
 
-**\## 7. Baseline Localization Results**
+  Metric            Result
+  --------------- --------
+  Precision         0.9330
+  Recall            0.9178
+  mAP@0.50          0.9444
+  mAP@0.50:0.95     0.7078
 
-The baseline localization model was trained for a maximum of 50 epochs
+These are **object-detection metrics**, not complete license-plate
+string accuracy. Results for rare classes such as `ka` and `ha` should
+be interpreted cautiously because only a small number of examples are
+present in the held-out splits.
 
-with early stopping.
+## Recent Recognition Improvements
 
-Training stopped at epoch 44, with the best model obtained at
+Additional testing in October 2026 investigated an unseen plate that was
+sometimes classified as `ha` instead of `ka`.
 
-approximately epoch 34.
+### Backend adjustments tested
 
-**\### Validation Performance**
+-   Increased the right-side plate-crop padding to 50%.
+-   Enabled class-agnostic non-maximum suppression for character
+    detections to reduce same-location competing predictions.
+-   Used vertical character positions to separate upper and lower rows
+    rather than relying only on a fixed crop-height threshold.
+-   Kept inference image size at 640 because validation performance
+    decreased at 960 and 1280 in the tested experiment.
 
-Metric Score
+These are **inference-time adjustments**, not evidence that the
+character model itself was retrained successfully. The original
+character checkpoint remains in use.
 
----
+### Three regression images
 
-Precision 0.972
+  Test image                Expected and observed plate string     Plate confidence
+  ------------------------- ------------------------------------ ------------------
+  `unseen_vehicle_01.jpg`   চট্টগ্রাম মেট্রো-ক ১১-০৮৩১                          87.95%
+  `images.jfif`             ঢাকা মেট্রো-গ ৩১-৯৯৫৭                             49.97%
+  `images (1).jfif`         খুলনা মেট্রো-ট ১১-১২৫১                             88.11%
 
-Recall 0.969
+All three strings matched the expected strings in these targeted checks.
+However, the Chattogram `ka` confidence was only 21.46%, and the Dhaka
+localization confidence was 49.97%. These results are useful regression
+checks on three known images; they do **not** establish general accuracy
+improvement.
 
-mAP@0.50 0.993
+### Character-model experiments
 
-mAP@0.50:0.95 0.802
+Two experimental fine-tuning runs were retained:
 
-**\### Held-Out Test Performance**
+-   `ka_balanced_t4_20261018_145008`
+-   `ka_controlled_20261018_154712`
 
-Test set:
+Neither experiment consistently improved the reported metrics over the
+original character model. The experimental checkpoints were **not
+promoted to production**. The original
+`models/character/character_best.pt` was not overwritten.
 
-\- 641 images
+The Colab notebook and experiment artifacts are retained for
+reproducibility. Large checkpoints and datasets should be stored outside
+GitHub unless the repository is deliberately configured for large-file
+hosting.
 
-\- 485 annotated plate instances
+## Project Structure
 
-\- 172 background/negative images
+The exact tree may vary by local setup, and the web app may be in a
+separate folder.
 
-Metric Score
-
----
-
-Precision **\*\*0.983\*\***
-
-Recall **\*\*0.971\*\***
-
-mAP@0.50 **\*\*0.991\*\***
-
-mAP@0.50:0.95 **\*\*0.788\*\***
-
-Baseline evaluation artifacts are stored in:
-
-\`\`\`text
-
-results/localization/localization_test/
-
-\`\`\`
-
----
-
-**\## 8. Character Recognition Results**
-
-Held-out character test set:
-
-\- 218 images
-
-\- 1,921 character instances
-
-\- 27 classes
-
-**\### Aggregate Test Performance**
-
-Metric Score
-
----
-
-Precision **\*\*0.933\*\***
-
-Recall **\*\*0.918\*\***
-
-mAP@0.50 **\*\*0.944\*\***
-
-mAP@0.50:0.95 **\*\*0.708\*\***
-
-Some sparse classes have fewer training/test examples and therefore
-
-remain more difficult than frequently represented classes.
-
-Evaluation plots are stored in:
-
-\`\`\`text
-
-results/character/character_test/
-
-\`\`\`
-
----
-
-**\## 9. End-to-End Recognition Pipeline**
-
-The final inference implementation is:
-
-\`\`\`text
-
-final_pipeline/lpr_pipeline.py
-
-\`\`\`
-
-The pipeline performs:
-
-1\.  Load vehicle image
-
-2\.  Detect license plate candidates
-
-3\.  Merge overlapping/nearby localization boxes
-
-4\.  Select the primary plate region
-
-5\.  Apply horizontal crop padding
-
-6\.  Detect plate characters
-
-7\.  Remove spatial duplicate/conflicting character detections
-
-8\.  Separate plate text into rows
-
-9\.  Sort characters left-to-right
-
-10\. Reconstruct the final plate text
-
-**\### Current Inference Settings**
-
-\`\`\`text
-
-Localization confidence: 0.05
-
-Character confidence:    0.10
-
-Localization image size: 640
-
-Character image size:    640
-
-Horizontal plate padding: 12%
-
-\`\`\`
-
-Additional pipeline information is available in:
-
-\`\`\`text
-
-final_pipeline/pipeline_info.txt
-
-\`\`\`
-
----
-
-**\## 10. Initial Unseen-Image Testing**
-
-Testing on previously unseen images revealed an important difference
-
-between benchmark performance and real-world generalization.
-
-Clear, front-facing plates were generally recognized successfully.
-
-More difficult cases included:
-
-\- dark plates
-
-\- night/low-light conditions
-
-\- blurry images
-
-\- very low-resolution plates
-
-\- partially localized plates
-
-\- unusual viewpoints
-
-\- localization boxes cutting off part of the plate
-
-The experiments showed that \*\*license plate localization was the main
-
-bottleneck\*\*.
-
-In several difficult examples, character recognition performed well when
-
-a complete plate crop was manually provided, while the baseline
-
-localization model failed to produce a complete plate region.
-
-This motivated the localization dataset diagnosis and improvement
-
-stages.
-
----
-
-**\## 11. Localization Dataset Diagnosis**
-
-Analysis of the localization training data showed:
-
-**\### Plate Brightness**
-
-From 3,798 training plate crops:
-
-\- Dark: 568 (14.96%)
-
-\- Medium brightness: 2,970 (78.20%)
-
-\- Bright: 260 (6.85%)
-
-**\### Plate Pixel Size**
-
-Median plate size:
-
-\- Width: 148 px
-
-\- Height: 88.5 px
-
-Small plates:
-
-\- Width \\\<100 px: 619
-
-\- Height \\\<50 px: 204
-
-\- Both width \\\<100 and height \\\<50: 186
-
-The dataset contains moderate vehicle and background diversity, but
-
-difficult conditions such as low resolution, poor lighting, unusual
-
-viewpoints, and distant plates are comparatively underrepresented.
-
-Detailed diagnosis:
-
-\`\`\`text
-
-results/localization_dataset_diagnosis.txt
-
-\`\`\`
-
----
-
-**\## 12. Localization Dataset Improvement**
-
-A targeted augmentation strategy was used instead of simply repeating
-
-the baseline training experiment.
-
-A total of **\*\*268 unique difficult source images\*\*** were selected.
-
-**\### Low-Light Augmentation**
-
-\- Brightness factor: 0.55
-
-\- 268 new images
-
-**\### Low-Resolution Simulation**
-
-Images were downsampled to approximately one-third resolution and then
-
-upsampled to the original dimensions to simulate low-resolution plate
-
-capture.
-
-\- 268 new images
-
-**\### Total Added Training Samples**
-
-**\*\*536 targeted augmented images\*\***
-
-Validation and test sets were intentionally left unchanged so that the
-
-improved model could be compared fairly against the baseline.
-
-**\### Improved Dataset**
-
-Split Images
-
----
-
-Train 5,660
-
-Validation 640
-
-Test 641
-
-The improved dataset passed label-integrity verification before
-
-training.
-
----
-
-**\## 13. Improved Localization Experiment**
-
-The improved YOLO11n localization model was trained for 50 epochs using
-
-the targeted augmented training dataset.
-
-The best weights are retained as the final localization model.
-
-**\### Improved Validation Performance**
-
-Metric Score
-
----
-
-Precision 0.973
-
-Recall 0.965
-
-mAP@0.50 0.993
-
-mAP@0.50:0.95 0.797
-
-**\### Improved Held-Out Test Performance**
-
-The unchanged held-out test set contained 641 images and 485 annotated
-
-plate instances.
-
-Metric Score
-
----
-
-Precision **\*\*0.9814\*\***
-
-Recall **\*\*0.9794\*\***
-
-mAP@0.50 **\*\*0.9926\*\***
-
-mAP@0.50:0.95 **\*\*0.7920\*\***
-
-Improved evaluation artifacts are stored in:
-
-\`\`\`text
-
-results/localization/localization_improved_test/
-
-\`\`\`
-
----
-
-**\## 14. Baseline vs Improved Localization**
-
-Because validation performance alone did not clearly favor the improved
-
-model, final selection was based on the unchanged held-out test set
-
-together with difficult unseen-image behavior.
-
-**\### Held-Out Test Comparison**
-
-Metric Baseline Improved Result
-
----
-
-Precision **\*\*0.9830\*\*** 0.9814 Baseline slightly higher
-
-Recall 0.9710 **\*\*0.9794\*\*** Improved
-
-mAP@0.50 0.9910 **\*\*0.9926\*\*** Improved
-
-mAP@0.50:0.95 0.7880 **\*\*0.7920\*\*** Improved
-
-The precision reduction is small, while recall and both mAP measures
-
-improved on the held-out test set.
-
-**\### Difficult Unseen Cases**
-
-**\*\*Test 03\*\***
-
-\- Baseline: no localization detection
-
-\- Improved: no localization detection
-
-\- Result: unresolved
-
-**\*\*Test 04\*\***
-
-\- Baseline: no localization detection
-
-\- Improved: no localization detection
-
-\- Result: unresolved
-
-**\*\*Test 05\*\***
-
-\- Baseline confidence: approximately **\*\*0.0802\*\***
-
-\- Improved confidence: approximately **\*\*0.6808\*\***
-
-\- Baseline required a very low confidence threshold
-
-\- Improved model detected the plate at the normal 0.25 threshold
-
-\- Result: **\*\*major practical improvement\*\***
-
-**\*\*Test 06\*\***
-
-\- Baseline localization was weak and incomplete
-
-\- Improved localization remained low-confidence and produced
-
-  overlapping/incomplete candidates
-
-\- Result: still unresolved/weak
-
-Comparison evidence is stored in:
-
-\`\`\`text
-
-results/localization/baseline_vs_improved_report.txt
-
-results/localization/comparison/
-
-\`\`\`
-
-**\### Final Model Decision**
-
-The \*\*improved YOLO11n localization model was selected as the final
-
-localization model\*\* because it provided:
-
-\- higher held-out recall
-
-\- higher held-out mAP@0.50
-
-\- higher held-out mAP@0.50:0.95
-
-\- a major generalization improvement on difficult Test 05
-
-\- only a very small precision reduction
-
-The baseline model remains preserved as:
-
-\`\`\`text
-
-models/localization/localization_baseline_best.pt
-
-\`\`\`
-
----
-
-**\## 15. Final End-to-End Verification**
-
-The selected improved localization model and final character recognition
-
-model were tested together through the complete recognition pipeline.
-
-A final evaluation image produced:
-
-\`\`\`text
-
-Status: success
-
-Localization confidence: approximately 0.8722
-
-Characters detected: 9
-
-dhaka metro ga
-
-147143
-
-\`\`\`
-
-The annotated final detection image was also saved during the final
-
-evaluation.
-
-**\### Additional New Unseen Image**
-
-A separate newly uploaded vehicle image, not used in the preceding
-
-training/evaluation workflow, was tested with the final models.
-
-Result:
-
-\`\`\`text
-
-Status: success
-
-Localization confidence: 0.8879
-
-Characters detected: 9
-
-dhaka metro ga
-
-144662
-
-\`\`\`
-
-The localization bounding box visually covered the license plate
-
-correctly.
-
-The annotated image is stored in:
-
-\`\`\`text
-
-inference_tests/final_new_image_test/test_vehicle_detected.jpg
-
-\`\`\`
-
-The recognized text is model output; localization correctness was
-
-additionally checked visually.
-
----
-
-**\## 16. Local Windows/VS Code Verification**
-
-The final improved localization model was transferred from Google Drive
-
-to the local project and tested with Python 3.11.
-
-Three existing local test images completed end-to-end inference
-
-successfully.
-
-**\### Local Test 01**
-
-\`\`\`text
-
-Status: success
-
-Localization confidence: 0.9213
-
-Characters detected: 9
-
-dhaka metro ca
-
-160385
-
-\`\`\`
-
-**\### Local Test 02**
-
-\`\`\`text
-
-Status: success
-
-Localization confidence: 0.8885
-
-Characters detected: 9
-
-dhaka metro ga
-
-335133
-
-\`\`\`
-
-**\### Local Test 03**
-
-\`\`\`text
-
-Status: success
-
-Localization confidence: 0.8837
-
-Characters detected: 9
-
-dhaka metro ga
-
-254444
-
-\`\`\`
-
-This confirms that the selected final models and pipeline operate
-
-independently of the Google Colab runtime.
-
----
-
-**\## 17. Project Structure**
-
-\`\`\`text
-
+``` text
 Bangladesh_License_Plate_Recognition/
-
-│
-
+├── dataset/
+│   └── yolo/
+│       ├── Localization/
+│       └── Character Recognition/
 ├── final_pipeline/
-
-│   ├── lpr_pipeline.py
-
-│   └── pipeline_info.txt
-
-│
-
+│   ├── lpr_pipeline.py
+│   └── pipeline_info.txt
 ├── inference_tests/
-
-│   ├── local_test/
-
-│   └── final_new_image_test/
-
-│       └── test_vehicle_detected.jpg
-
-│
-
+│   ├── local_test/
+│   └── final_new_image_test/
 ├── models/
-
-│   ├── character/
-
-│   │   └── character_best.pt
-
-│   └── localization/
-
-│       ├── localization_best.pt
-
-│       └── localization_baseline_best.pt
-
-│
-
+│   ├── localization/
+│   └── character/
 ├── notebooks/
-
-│   ├── 01_dataset_audit.ipynb
-
-│   ├──           02_localization_improvement.ipynb
-
-│   ├── 03_colab_training_evaluation.ipynb
-
-│   └── 04_final_local_inference.ipynb
-
-│
-
+│   ├── 01_dataset_audit.ipynb
+│   ├── 02_localization_improvement.ipynb
+│   ├── 03_colab_training_evaluation.ipynb
+│   ├── 04_final_local_inference.ipynb
+│   └── BD_PlateVision_Character_Model_FineTuning.ipynb
 ├── results/
-
-│   ├── character/
-
-│   ├── final_evaluation/
-
-│   ├── localization/
-
-│   │   ├── localization_test/
-
-│   │   ├── localization_improved_test/
-
-│   │   ├── comparison/
-
-│   │   └── baseline_vs_improved_report.txt
-
-│   └── localization_dataset_diagnosis.txt
-
-│
-
+│   ├── character/
+│   ├── final_evaluation/
+│   └── localization/
+├── train_character_ka_balanced.py
+├── requirements.txt
 ├── .gitignore
+└── README.md
+```
 
-├── README.md
+Do not commit virtual environments, large dataset archives, or
+experimental checkpoints unintentionally. The `.gitignore` should
+exclude local-only files and generated artifacts that are not meant to
+be versioned.
 
-└── requirements.txt
+## Local Setup
 
-\`\`\`
+Python **3.11 or 3.12** is recommended for a compatible local
+environment. Use the version and package set supported by your installed
+PyTorch and Ultralytics versions.
 
-Large datasets, virtual environments, and dataset ZIP archives are
+Open PowerShell in the project root:
 
-intentionally excluded from Git version control.
+``` powershell
+cd "D:\Documents\Ml project\Bangladesh_License_Plate_Recognition"
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
 
----
+If you already have a working virtual environment, activate it rather
+than creating another one.
 
-**\## 18. Installation**
+Check core dependencies:
 
-Python 3.11 is recommended.
+``` powershell
+python -c "import cv2, torch, ultralytics; print('OpenCV:', cv2.__version__); print('PyTorch:', torch.__version__); print('Ultralytics:', ultralytics.__version__)"
+```
 
-Create a virtual environment:
+GPU training requires a compatible CUDA-enabled PyTorch installation and
+an available GPU. CPU training is possible but may be much slower and
+can depend on the local runtime environment.
 
-\`\`\`bash
+## Run the Recognition Pipeline
 
-python -m venv .venv311
+The standalone ML pipeline is located at:
 
-\`\`\`
-
-Activate it on Windows PowerShell:
-
-\`\`\`powershell
-
-.\\.venv311`\Scripts`{=tex}`\Activate`{=tex}.ps1
-
-\`\`\`
-
-Install the required packages:
-
-\`\`\`bash
-
-pip install -r requirements.txt
-
-\`\`\`
-
-Core dependencies include:
-
-\- Ultralytics
-
-\- PyTorch
-
-\- Torchvision
-
-\- OpenCV
-
-\- NumPy
-
-\- Pillow
-
----
-
-**\## 19. Using the Pipeline**
+``` text
+final_pipeline/lpr_pipeline.py
+```
 
 Example:
 
-\`\`\`python
-
+``` python
 from final_pipeline.lpr_pipeline import BangladeshLPR
 
 lpr = BangladeshLPR(
-
-    "models/localization/localization_best.pt",
-
-    "models/character/character_best.pt"
-
+    "models/localization/localization_best.pt",
+    "models/character/character_best.pt",
 )
 
 result = lpr.recognize("path/to/vehicle_image.jpg")
 
-print(result\["status"\])
-
+print(result["status"])
 print(result.get("text"))
-
 print(result.get("plate_box"))
-
 print(result.get("localization_detections"))
-
 print(result.get("characters"))
+```
 
-\`\`\`
+The returned fields depend on the pipeline response and may include
+status, recognized text, plate box, localization detections, character
+detections, and crop information.
 
-The returned dictionary can contain:
+## FastAPI Endpoints
 
-\- \`status\`
+The web-app backend exposes these endpoints when running locally:
 
-\- \`text\`
+  Method   Endpoint           Purpose
+  -------- ------------------ ---------------------------------
+  `GET`    `/`                API status
+  `GET`    `/api/health`      Model and class status
+  `POST`   `/api/recognize`   Upload an image for recognition
 
-\- \`plate_box\`
+The recognition endpoint accepts JPG, PNG, and WebP images up to 10 MB.
 
-\- \`localization_detections\`
+Example health-check URL:
 
-\- \`characters\`
+``` text
+http://127.0.0.1:8000/api/health
+```
 
-\- \`crop\`
+Run the API from the directory containing its `main.py`, using the
+command configured for that backend environment. A common local command
+is:
 
-The pipeline currently runs on CPU locally and can also be used in
+``` powershell
+uvicorn main:app --reload
+```
 
-Google Colab.
+Ensure that the backend model paths point to the actual `.pt` files and
+that the web app's API base URL matches the running backend.
 
----
+## Google Colab Experiments
 
-**\## 19.1 Final Local Inference Verification**
+The notebook `notebooks/BD_PlateVision_Character_Model_FineTuning.ipynb`
+documents the character-model investigation.
 
-A final interactive inference notebook was created for testing unseen
-vehicle images locally:
+The workflow includes:
 
-\`\`\`text
+1.  Mount Google Drive.
+2.  Load the dataset archive and original character model.
+3.  Extract the dataset and create a Colab-compatible `data.yaml`.
+4.  Evaluate the original model.
+5.  Run controlled augmentation and fine-tuning experiments.
+6.  Compare validation and test metrics.
+7.  Inspect confusing character predictions and regression images.
 
-notebooks/04_final_local_inference.ipynb
+The notebook contains paths specific to the original Google Drive folder
+structure. Update those paths when running under another account or
+directory.
 
----
-
-\## Confusion Matrix Analysis
-
-Confusion matrices were generated during held-out evaluation for both
-the character recognition and license plate localization models.
-
-\### Character Recognition Confusion Matrix
-
-The character recognition evaluation includes both standard and
-normalized confusion matrices:
-
-\`\`\`text
-
-results/character/character_test/confusion_matrix.png
-
-results/character/character_test/confusion_matrix_normalized.png
-
-\`\`\`
-
-The normalized confusion matrix shows strong recognition for several
-numeric, regional, and plate-prefix classes. Some less represented and
-visually similar Bangla character classes show greater cross-class
-confusion.
-
-This is consistent with the final character-model performance:
-
-\| Metric \| Score \|
-
-\|---\|---:\|
-
-\| Precision \| 0.933 \|
-
-\| Recall \| 0.918 \|
-
-\| mAP50 \| 0.944 \|
-
-\| mAP50-95 \| 0.708 \|
-
-During final unseen-image testing, one plate containing \`ka\` was
-initially recognized as \`ha\`. Further investigation showed that direct
-PIL input to the character detector produced the correct
-higher-confidence \`ka\` candidate for that image.
-
-The final pipeline therefore uses:
-
-\`\`\`python
-
-source=plate_crop
-
-\`\`\`
-
-instead of:
-
-\`\`\`python
-
-source=np.array(plate_crop)
-
-\`\`\`
-
-After this change, the problematic plate was correctly recognized as:
-
-\`\`\`text
-
-chattogram metro ka
-
-110831
-
-\`\`\`
-
-Regression testing on four previously successful images showed that
-their recognition results remained correct.
-
-This example demonstrates why confusion-matrix analysis and unseen-image
-testing are both important: aggregate evaluation metrics can be strong
-while individual visually similar or sparsely represented character
-classes can still present challenges.
-
-**\### Localization Confusion Matrices**
-
-Confusion matrices are also available for both localization experiments.
-
-Baseline localization:
-
-\`\`\`text
-
-results/localization/localization_test/confusion_matrix.png
-
-results/localization/localization_test/confusion_matrix_normalized.png
-
-\`\`\`
-
-Improved localization:
-
-\`\`\`text
-
-results/localization/localization_improved_test/confusion_matrix.png
-
-results/localization/localization_improved_test/confusion_matrix_normalized.png
-
-\`\`\`
-
-These evaluation artifacts are retained in the repository so that the
-baseline and improved localization models can be compared alongside
-their quantitative test metrics.
-
----
-
-**\## 20. Current Limitations**
-
-The improved model strengthens localization generalization but does not
-
-eliminate all difficult cases.
-
-Remaining challenges include:
-
-\- severe blur
-
-\- very low-resolution plates
-
-\- poor illumination
-
-\- unusual viewing angles
-
-\- partially visible plates
-
-\- large domain differences from the training dataset
-
-\- occasional incomplete or overlapping localization boxes
-
-\- sparse character classes with fewer examples
-
-Difficult Tests 03 and 04 remained undetected after the targeted
-
-localization improvement. Test 06 also remained weak.
-
-Therefore, benchmark scores should not be interpreted as perfect
-
-real-world recognition. Further improvement would require additional
-
-diverse real-world Bangladesh vehicle images, especially examples
-
-representing the unresolved conditions.
-
----
-
-**\## 21. Experiment Reproducibility**
-
-The project retains the main evidence required to reproduce and inspect
-
-the ML workflow:
-
-\`\`\`text
-
-notebooks/01_dataset_audit.ipynb
-
-notebooks/02_localization_improvement.ipynb
-
-notebooks/03_colab_training_evaluation.ipynb
-
-results/localization/localization_test/
-
-results/localization/localization_improved_test/
-
-results/localization/comparison/
-
-results/localization/baseline_vs_improved_report.txt
-
-models/localization/localization_baseline_best.pt
-
-models/localization/localization_best.pt
-
-models/character/character_best.pt
-
-\`\`\`
-
-The original datasets are preserved separately and were not modified by
-
-the final pipeline.
-
----
-
-## \*\*
-
-## 21.1. October 2026 Character Recognition Investigation and Web-App Regression Tests
-
-After the initial end-to-end pipeline was verified, additional testing
-focused on difficult character predictions, especially the Bengali
-plate-category letters `ka` (ক) and `ha` (হ).
-
-### Controlled character-model experiments
-
-The original character model was evaluated before and after experimental
-training and augmentation. The experiments were kept separate from the
-production checkpoint.
-
--   The original `character_best.pt` remains the production character
-    model.
--   The `ka_balanced_t4_20261018_145008` and
-    `ka_controlled_20261018_154712` experiments did not show a
-    consistent improvement across the reported metrics.
--   The controlled model was not promoted to production.
--   Validation at input sizes 640, 960, and 1280 showed that increasing
-    the input size reduced overall validation performance in this
-    experiment. The working inference size therefore remains 640.
-
-Original model validation metrics at image size 640:
-
-  Metric               Result
-  ------------------ --------
-  Overall mAP50        0.9401
-  Overall mAP50-95     0.7080
-  Precision            0.9079
-  Recall               0.9217
-  `ka` mAP50-95        0.7375
-  `ha` mAP50-95        0.5854
-
-Validation results by input size:
-
-  -----------------------------------------------------------------------
-  Input size   Overall mAP50        Overall  `ka` mAP50-95  `ha` mAP50-95
-                                   mAP50-95                
-  ----------- -------------- -------------- -------------- --------------
-  640                 0.9401         0.7080         0.7375         0.5854
-
-  960                 0.9154         0.6759         0.5354         0.4961
-
-  1280                0.8453         0.5827         0.4933         0.3977
-  -----------------------------------------------------------------------
-
-These results support retaining image size 640 rather than increasing
-the inference resolution as a general fix.
-
-### Confusion and annotation audit
-
-The validation confusion matrix showed that some underrepresented or
-visually similar character classes remain difficult. A targeted audit
-checked for overlapping `ka` and `ha` ground-truth boxes in the train,
-validation, and test label files. No overlapping `ka`/`ha` annotation
-pairs were found at IoU \>= 0.5.
-
-A validation audit examined seven ground-truth `ka` instances. Four were
-initially flagged because the highest overlapping prediction was not
-`ka`; a follow-up inspection showed that three of those examples also
-had a higher-confidence `ka` prediction at nearly the same location. One
-blurry validation example was predicted as `gha` despite having a `ka`
-label. The full plate context made the character interpretable as `ka`,
-so its label was retained.
-
-The audit illustrates that duplicate, low-confidence candidate boxes
-should be examined before labelling a case as a definitive class error.
-It also confirms that the original character model can still confuse
-some individual characters even when aggregate detection metrics are
-strong.
-
-### Backend crop and duplicate-suppression update
-
-The web-app backend was updated and tested with the original production
-character model. The tested inference configuration uses:
-
--   Localization image size: 640
--   Character image size: 640
--   Character confidence threshold: 0.15
--   Character IoU setting: 0.7
--   Class-agnostic NMS enabled for character detections
--   Crop padding: 5% to the left, 50% to the right, and 15% vertically
-    around the detected plate box
--   Row reconstruction based on the vertical distribution of character
-    detections
-
-The wider right-side crop helped the difficult Chattogram plate: the
-`ha` candidate disappeared and a `ka` candidate remained. Class-agnostic
-NMS also reduced same-location competing class detections in the tested
-examples. These changes are practical inference adjustments, not a
-retrained model or a guarantee of improved performance on every image.
-
-### Web-app regression results
-
-The updated backend returned the expected plate strings for these three
-regression images:
-
-  -----------------------------------------------------------------------------------
-  Image                     Expected and        Plate confidence    Notable character
-                            observed                                       confidence
-                            recognized                           
-                            plate                                
-  ------------------------- --------------- -------------------- --------------------
-  `unseen_vehicle_01.jpg`   চট্টগ্রাম মেট্রো-ক               87.95%         `ka`: 21.46%
-                            ১১-০৮৩১                              
-
-  `images.jfif`             ঢাকা মেট্রো-গ                  49.97%         `ga`: 91.51%
-                            ৩১-৯৯৫৭                              
-
-  `images (1).jfif`         খুলনা মেট্রো-ট                  88.11%         `ta`: 76.62%
-                            ১১-১২৫১                              
-  -----------------------------------------------------------------------------------
-
-All three recognized strings matched the expected strings in these
-targeted tests. However, the Chattogram `ka` confidence and the Dhaka
-plate-localization confidence remain low, so these results should be
-treated as regression checks on three known images rather than evidence
-of general accuracy improvement. Broader testing on varied images is
-still needed.
-
-### Experiment artifacts and reproducibility
-
-The following artifacts were saved to Google Drive under:
+Experiment artifacts were saved under:
 
 ``` text
 MyDrive/Bangladesh_License_Plate_Recognition/colab_artifacts/20261018/
 ```
 
--   `ka_augmented_dataset/`
--   `ka_ha_confusion_matrix/`
--   `diagnostic_plate_crop.jpg`
--   `experiment_summary.json`
+This backup includes the augmented dataset, confusion-matrix artifacts,
+a diagnostic crop, and an experiment summary. The experiment run folders
+also contain their `best.pt` and `results.csv` files.
 
-The two experimental run directories also contain `best.pt` and
-`results.csv` files. These are retained for comparison only. The
-original production model was not overwritten.
+## Limitations and Future Work
 
-------------------------------------------------------------------------
+-   Severe blur, low resolution, poor illumination, and unusual viewing
+    angles remain challenging.
+-   Some character classes are underrepresented and can be confused.
+-   Correct predictions on a few known images do not establish broad
+    real-world accuracy.
+-   Confidence values are model scores, not calibrated probabilities
+    that the full plate string is correct.
+-   The three regression examples should be supplemented with a larger
+    and more diverse evaluation set.
+-   Future work should prioritize verified labels and additional diverse
+    real-world examples for sparse character classes.
+-   Keep the production model unchanged until a candidate demonstrates
+    reliable improvement on validation, held-out test data, and
+    regression images.
 
-## 22. Next Steps\*\*
+## Author
 
-The core ML project is now complete.
+**Abidul Hoque Alvee**\
+Independent Computer Vision Project · 2026
 
-Next project stages:
+## Data and License Notice
 
-1\.  Perform a final repository cleanup and Git status check.
-
-2\.  Publish the completed ML project to GitHub.
-
-3\.  After the ML repository is finalized, develop the web application
-
-    separately around the verified inference pipeline.
-
-Additional model/data improvements can be performed later as a separate
-
-experiment rather than blocking completion of the current ML project.
-
----
-
-**\## 23. Notes**
-
-The original datasets are preserved locally and are not modified by the
-
-final pipeline.
-
-Large datasets and dataset ZIP files are excluded from the repository to
-
-keep the GitHub project lightweight.
-
-The repository represents the completed ML stage with the \*\*improved
-
-localization model selected as the final model\*\*, while the baseline
-
-model and comparative evaluation evidence are retained for
-
-reproducibility.
+Add a license before publicly redistributing the source code. Confirm
+that dataset images, annotations, and model weights may be shared under
+their applicable terms before publishing them.
