@@ -1,4 +1,3 @@
-::: {align="center"}
 # BD PlateVision
 
 ### A YOLO11-Based Framework for Bangladeshi License Plate Localization and Character Recognition
